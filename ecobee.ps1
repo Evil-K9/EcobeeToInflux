@@ -108,8 +108,9 @@ function Get-EcobeeNewToken {
     $url = "https://api.ecobee.com/token"
     $data = "grant_type=refresh_token&code=" + $RefreshToken + "&client_id=" + $apiKey
     
+    
     $Result = Invoke-RestMethod -Method POST -Uri $url -Body $data
-
+    
     $Result
 }
 
@@ -117,6 +118,11 @@ function Save-EcobeeTokens {
     Param(
         [psobject]$Tokens
     )
+
+    # Validate $Tokens
+    if (!($Tokens.refresh_token)) { write-error "No refresh token found! Not saving!"; exit; }
+
+    # Add useful properties
     Add-Member -InputObject $Tokens -MemberType NoteProperty -Name expires_at -Value (Get-Date).AddSeconds($Tokens.expires_in) -Force
     Add-Member -InputObject $Tokens -MemberType NoteProperty -Name last_refresh -Value (Get-Date) -Force
 
@@ -180,9 +186,9 @@ function Get-EcobeeSummary {
  <- access & Refresh tokens
 #>
 
-if (!(Test-path $TokenFile)) { # Assume app is not registered, begin registration routine
+if (!(Test-path $TokenFile) -or !($Tokens = Import-Clixml -Path $TokenFile).refresh_token) { # Assume app is not registered, begin registration routine
 
-    Write-Host "No token file was found at the path specified. The following proceedure will walk you through registering this script as an App with your Ecobee account.`n" -ForegroundColor Yellow
+    Write-Host "No token file was found at the path specified, or it contains no refresh token. The following proceedure will walk you through registering this script as an App with your Ecobee account.`n" -ForegroundColor Yellow
     Pause
     
     $PIN = Get-EcobeePIN -apikey $apiKey
@@ -194,11 +200,11 @@ if (!(Test-path $TokenFile)) { # Assume app is not registered, begin registratio
     Write-Host "Once you've done this, " -NoNewline; Pause
 
     Write-Verbose "Fetching first tokens..."
-    $Tokens = Get-EcobeeFirstToken -authCode $PIN.code
+    $Tokens = Get-EcobeeFirstToken -apikey $apikey -authCode $PIN.code
     Save-EcobeeTokens -object $Tokens
 
     Write-Verbose "Fetching refresh tokens..."
-    $Tokens = Get-EcoBeeNewToken
+    $Tokens = Get-EcoBeeNewToken -apiKey $apiKey -RefreshToken $Tokens.refresh_token
     Save-EcobeeTokens -Tokens $Tokens
 
 }
@@ -259,6 +265,7 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
         $SensorTags = "sensorID=$($Sensor.id),sensorName=$($Sensor.name.replace(' ','_')),sensorType=$($Sensor.type)"
         $InfluxData+=  "$CommonData,Category=Sensors,$SensorTags inUse=$($Sensor.inUse) $epochnanoseconds`n"
         foreach ($Capability in $Sensor.capability) {
+            if ($Capability.value -eq $null) { $Capability.value = 0 }
             $InfluxData+= "$CommonData,Category=Sensors,$SensorTags $($capability.type)=$($Capability.value) $epochnanoseconds`n"
         }
     }
