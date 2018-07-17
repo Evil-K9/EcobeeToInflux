@@ -234,7 +234,7 @@ $InfluxData = "" # Create an empty string
 foreach ($Thermostat in $EcobeeDetails.thermostatList) {
     
     # Values that never change as tags
-    $CommonData = "$InfluxTable,$($GlobalTags),name=$($Thermostat.name),id=$($Thermostat.identifier),model=$($Thermostat.modelNumber)"
+    $CommonData = "$InfluxTable,$($GlobalTags),name=$($Thermostat.name),id=$($Thermostat.identifier),model=$($Thermostat.modelNumber)" -Replace '(\s)', '\$1'
     
     $InfluxData += "$CommonData revision=$($Thermostat.thermostatRev) $epochnanoseconds`n"
     $InfluxData += "$CommonData equipmentStatus=""$($Thermostat.equipmentStatus)"" $epochnanoseconds`n"
@@ -262,7 +262,7 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
     }
     foreach ($Sensor in $Thermostat.remoteSensors) {
         $id = $Sensor.id
-        $SensorTags = "sensorID=$($Sensor.id),sensorName=$($Sensor.name.replace(' ','_')),sensorType=$($Sensor.type)"
+        $SensorTags = "sensorID=$($Sensor.id),sensorName=$($Sensor.name),sensorType=$($Sensor.type)" -Replace '(\s)', '\$1'
         $InfluxData+=  "$CommonData,Category=Sensors,$SensorTags inUse=$($Sensor.inUse) $epochnanoseconds`n"
         foreach ($Capability in $Sensor.capability) {
             if ($Capability.value -eq $null) { $Capability.value = 0 }
@@ -272,7 +272,7 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
     $Weather = $Thermostat.weather.forecasts[0]
     $Properties = "weatherSymbol","dateTime","condition","temperature","pressure","relativeHumidity","dewpoint","visibility","windSpeed","windGust","windDirection","windBearing","pop","tempHigh","tempLow","sky"
     foreach ($Property in $Properties) {
-        $WeatherTags = "Category=Weather,sensorID=$($Thermostat.weather.weatherStation),sensorName=WeatherStation,sensorType=station"
+        $WeatherTags = "Category=Weather,sensorID=$($Thermostat.weather.weatherStation),sensorName=WeatherStation,sensorType=station" -Replace '(\s)', '\$1'
         if ($Weather.$Property.GetType().name -like "String") {
             $InfluxData+= "$CommonData,$WeatherTags $($Property)=""$($Weather.$Property)"" $epochnanoseconds`n"
         }
@@ -291,10 +291,14 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
 # Write data to InfluxDB
 
 if ($InfluxAuthentication) {
-    Invoke-RestMethod -Headers @{Authorization=$AuthString} -URI "$InfluxHost/write?db=$InfluxDBName" -Method POST -Body $InfluxData -ContentType 'application/json'
+    try {
+        Invoke-RestMethod -Headers @{Authorization=$AuthString} -URI "$InfluxHost/write?db=$InfluxDBName" -Method POST -Body $InfluxData -ContentType 'application/json'
+    } catch { Write-Error "There was a problem writing data to the InfluxDB API: $InfluxHost Authentication=True" }
 }
 Else {
-    Invoke-RestMethod -URI "$InfluxHost/write?db=$InfluxDBName" -Method POST -Body $InfluxData -ContentType 'application/json'
+    try {
+        Invoke-RestMethod -URI "$InfluxHost/write?db=$InfluxDBName" -Method POST -Body $InfluxData -ContentType 'application/json'
+    } catch { Write-Error "There was a problem writing data to the InfluxDB API: $InfluxHost Authentication=False" }
 }
 
 # if Invoke-Restmethod returns {"error":"database not found"}
