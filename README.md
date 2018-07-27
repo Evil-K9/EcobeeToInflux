@@ -8,7 +8,7 @@ After it has generated the tokens, it ran run repeatedly. Ecobee states that you
 
 I suggest having the script run like this:
 ````PowerShell
-while ($True) { Start-Sleep -Seconds 900; .\ecobee.ps1 }
+while ($True) { .\ecobee.ps1; Start-Sleep -Seconds 900; }
 
 ````
 Where 900 seconds equals 15 minutes.
