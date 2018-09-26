@@ -1,25 +1,25 @@
-##########################################
-# User Variables
-##########################################
-# Go here to register as a developer and get your own API key - 
-# https://www.ecobee.com/home/developer/api/introduction/index.shtml
-# This script will take care of generating your PIN, and getting the access and refresh tokens!
+[CmdletBinding()]
+Param(
+    ##########################################
+    # User Variables
+    ##########################################
+    # Go here to register as a developer and get your own API key - 
+    # https://www.ecobee.com/home/developer/api/introduction/index.shtml
+    # This script will take care of generating your PIN, and getting the access and refresh tokens!
 
-$apiKey = "" ### FILL THIS IN!
-$TokenFile = "$Script:PSScriptRoot\Ecobee.xml" # File to save the tokens
+    $apiKey = "", ### FILL THIS IN!
+    $TokenFile = "$Script:PSScriptRoot\Ecobee.xml", # File to save the tokens
 
-# Influx Variables
+    # Influx Variables
 
-$InfluxHost = "http://<yourServer>:8086"  # http(s)://hostname:port
-# Uncomment the line near the bottom "Invoke-RestMethod ..." and run it one time to create the database for you.
-$InfluxDBName = "hvac"
-$influxTable = "ecobee"
-$InfluxAuthentication = $true
-$InfluxUser = "hvac"
-$InfluxPass = "passwordHVAC"
-$GlobalTags = "Location=Home"
-
-##########################################
+    $InfluxHost = "",  # http(s)://hostname:port
+    $InfluxDBName = "hvac",
+    $influxTable = "ecobee",
+    $InfluxAuthentication = $true,
+    $InfluxUser = "hvac",
+    $InfluxPass = "passwordHVAC",
+    $GlobalTags = "Location=Home"
+)
 
 # Encode the user/pass
 $Credentials = "$($InfluxUser):$($InfluxPass)"
@@ -242,7 +242,9 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
     $InfluxData += "$CommonData reminedMeCountdownMS=$([int64](([datetime]$thermostat.settings.remindMeDate) - (get-date)).totalMilliseconds) $epochnanoseconds`n"
 
     foreach ($Category in $Include.Categories) {
+        Write-Verbose "Category: $Category"
         foreach ($Property in $Include.$Category) {
+           Write-Verbose "Property: $Property"
            # Fill in a dummy value instead of a null
            if ($Thermostat.$Category.$Property -eq $null) { $Thermostat.$Category.$Property = 0 }
    
@@ -256,7 +258,8 @@ foreach ($Thermostat in $EcobeeDetails.thermostatList) {
                $InfluxData+= "$CommonData,Category=$Category $($Property)=$($Thermostat.$Category.$Property) $epochnanoseconds`n"
            }
        } # End foreach $Property
-   } # End foreach $Category
+    } # End foreach $Category
+
     foreach ($Event in $Thermostat.events) { 
         <# Do nothing here yet #> 
     }
@@ -300,6 +303,7 @@ Else {
         Invoke-RestMethod -URI "$InfluxHost/write?db=$InfluxDBName" -Method POST -Body $InfluxData -ContentType 'application/json'
     } catch { Write-Error "There was a problem writing data to the InfluxDB API: $InfluxHost Authentication=False" }
 }
+write-host $(get-date)
 
 # if Invoke-Restmethod returns {"error":"database not found"}
 # Invoke-RestMethod -Headers @{Authorization=$AuthString} -URI "$InfluxHost/query?q=CREATE DATABASE $InfluxDBName" -Method POST  -ContentType 'application/json'
