@@ -12,3 +12,5 @@ while ($True) { .\ecobee.ps1; Start-Sleep -Seconds 900; }
 
 ````
 Where 900 seconds equals 15 minutes.
+
+Or add it as a scheduled task. But be sure to run it manually the first time to get your tokens.
