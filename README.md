@@ -14,3 +14,30 @@ while ($True) { .\ecobee.ps1; Start-Sleep -Seconds 900; }
 Where 900 seconds equals 15 minutes.
 
 Or add it as a scheduled task. But be sure to run it manually the first time to get your tokens.
+
+# Running on Linux
+
+[Powershell is also available for Linux](https://docs.microsoft.com/en-us/powershell/scripting/install/installing-powershell-core-on-linux?view=powershell-6),
+and can be installed directly in most distributions or run with Docker.
+
+First, clone this repository to `/etc/ecobee`. Run the script once to
+authenticate against the API with:
+
+```
+sudo docker run --network=host \
+  --rm -it \
+  -v $(pwd):/ecobee \
+  mcr.microsoft.com/powershell \
+  pwsh ./ecobee/ecobee.ps1
+```
+
+Then, add the following file to gather statistics every 15 minutes.
+
+`/etc/cron.d/ecobee-influx:`
+
+```
+*/15 * * * *     root  /usr/bin/docker run --network=host --rm -v /etc/ecobee:/ecobee mcr.microsoft.com/powershell pwsh ./ecobee/ecobee.ps1 > /dev/null
+```
+
+If powershell is installed directly through a PPA, remove all of the docker
+commands and flags and run `pwsh` directly.
